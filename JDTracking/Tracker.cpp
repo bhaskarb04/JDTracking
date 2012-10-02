@@ -7,10 +7,13 @@ Tracker::Tracker()
 	load_images(path_original,false);
 }
 
-Tracker::Tracker(string pname)
+Tracker::Tracker(string pname,bool video)
 {
 	path_original=pname;
-	load_images(path_original,false);
+	if(!video)
+		load_images(path_original,false);
+	else
+		load_images_video(path_original,false);
 }
 
 //destructor
@@ -47,12 +50,44 @@ void Tracker::load_images(string pname,bool show)
 	{
 		list_images.push_back(cv::imread(pname+"\\"+list_image_names[i]));
 		list_images_org.push_back(list_images[i]);
+		if(i==0)
+			ref=list_images[i].clone();
 		if(show)
 		{
 			cv::imshow("showme",list_images[i]);
 			cv::waitKey(50);
 		}
 	}
+	imgrows=list_images[0].rows;
+	imgcols=list_images[0].cols;
+}
+
+void Tracker::load_images_video(string p, bool show)
+{
+	cv::VideoCapture video(p);
+	cv::Mat frame;
+	int firstframe=0;
+	while(video.read(frame))
+	{
+		if(firstframe==1)
+		{
+			ref=frame.clone();
+		}
+		firstframe++;
+		cv::Mat temp=frame.clone();
+		list_images.push_back(temp);
+		list_images_org.push_back(temp);
+		if(show)
+		{
+			cv::imshow("Video Captured",frame);
+			cv::waitKey(10);
+		}
+	}
+	//cv::imshow("reference",ref);
+	//cv::waitKey(0);
+	imgrows=list_images[0].rows;
+	imgcols=list_images[0].cols;
+
 }
 
 void Tracker::clean_image(bool show)
@@ -62,7 +97,9 @@ void Tracker::clean_image(bool show)
 	for(unsigned int i=0; i < list_images.size();i++)
 	{
 		cv::Mat erode1,erode2,dilate1,dilate2;
-		cv::erode(list_images[i],erode1,strelem);
+		cv::Mat worefimg;
+		cv::subtract(list_images[i],ref,worefimg);
+		cv::erode(worefimg,erode1,strelem);
 		cv::dilate(erode1,dilate2,strelem,cvPoint(-1,-1),2);
 		cv::erode(dilate2,erode2,strelem);
 		list_images[i]=erode2;
@@ -76,6 +113,7 @@ void Tracker::clean_image(bool show)
 
 void Tracker::track_particles(bool show)
 {
+	cv::VideoWriter record("Contours.avi",CV_FOURCC('D','I','V','X'),30, list_images[0].size(), true);
 	vector<vector<cv::Point> > contour;
 	for(unsigned int i=0;i<list_images.size();i++)
 	{
@@ -97,12 +135,15 @@ void Tracker::track_particles(bool show)
 		contours.push_back(contour);
 		if(show)
 		{
-			cv::drawContours(list_images[i],contour,-1,CV_RGB(255,0,0),2);
+			cv::drawContours(list_images[i],contour,-1,CV_RGB(255,0,0),1);
 			cv::imshow("showme",list_images[i]);
-			cv::waitKey(50);
+			cv::waitKey(200);
+			record<<list_images[i];
+			record<<list_images[i];
+			record<<list_images[i];
 		}	
 	}
-	make_tracks();
+	make_tracks(false,200);
 }
 
 void Tracker::optical_flow(bool show)
@@ -132,19 +173,25 @@ void Tracker::optical_flow(bool show)
 	}
 }
 
-void Tracker::make_tracks()
+void Tracker::make_tracks(bool show,int wait)
 {
 	cv::VideoWriter record("Particles.avi",CV_FOURCC('D','I','V','X'),30, list_images[0].size(), true);
 	trackpoint tt;
 	for(unsigned int i=0;i<contours.size();i++)
 	{
+		cout<<i<<endl;
 		if(contours[i].size()==0) continue;
 		cv::Mat showimage=tt.update(contours[i],list_images_org[i]);
-		//cv::imshow("showme",showimage);
+		tracks.push_back(tt.centre_return());
 		record<<showimage;
 		record<<showimage;
 		record<<showimage;
-		//cv::waitKey(200);
+		if(show)
+		{
+			cv::imshow("showme",showimage);
+			cv::waitKey(wait);
+		}
+		
 	}
 }
 trackpoint::trackpoint()
@@ -155,8 +202,9 @@ trackpoint::~trackpoint()
 {
 
 }
-cv::Point trackpoint::contourcentre(vector<cv::Point> c)
+showcircle trackpoint::contourcentre(vector<cv::Point> c)
 {
+	showcircle showc;
 	cv::Point2f midpoint=cvPoint(0,0);
 	for(unsigned int i=0;i<c.size();i++)
 	{
@@ -165,12 +213,21 @@ cv::Point trackpoint::contourcentre(vector<cv::Point> c)
 	}
 	midpoint.x/=c.size();
 	midpoint.y/=c.size();
-	return(midpoint);
+	double dist=sqrt((c[0].x-midpoint.x)*(c[0].x-midpoint.x)+(c[0].y-midpoint.y)*(c[0].y-midpoint.y));
+	for(unsigned int i=1;i<c.size();i++)
+	{
+		double newdist=sqrt((c[i].x-midpoint.x)*(c[i].x-midpoint.x)+(c[i].y-midpoint.y)*(c[i].y-midpoint.y));
+		if(newdist > dist)
+			dist=newdist;
+	}
+	showc.p=midpoint;
+	showc.radius=dist;
+	return(showc);
 }
 cv::Mat trackpoint::update(vector<vector<cv::Point> >contour,cv::Mat img)
 {
 	//find nearest point from centre + motion
-	vector<cv::Point> tempcentres;
+	vector<showcircle> tempcentres;
 	for(unsigned int i=0;i<contour.size();i++)
 	{
 		tempcentres.push_back(contourcentre(contour[i]));
@@ -182,15 +239,27 @@ cv::Mat trackpoint::update(vector<vector<cv::Point> >contour,cv::Mat img)
 		motion.push_back(cvPoint(0,0));
 		age.push_back(AGE_THRESH);
 	}
+	centres_p.clear();
 	for(unsigned int i=0;i<centres.size();i++)
 	{
+		showcircle sc;
+		sc.p=centres[i].p;
+		sc.visible=false;
+		sc.radius=centres[i].radius;
+		int xx=max(0,min(img.cols-1,centres[i].p.x));
+		int yy=max(0,min(img.rows-1,centres[i].p.y));
+
+		cv::Vec3b blah=img.at<cv::Vec3b>(yy,xx);
+		sc.z=(255-blah.val[0]);
 		if(age[i]>0)
 		{
 			char num[5];
-			cv::circle(img,centres[i],3,CV_RGB(255,0,0),1);
+			cv::circle(img,centres[i].p,3,CV_RGB(255,0,0),1);
 			_itoa(i,num,10);
-			cv::putText(img,string(num),centres[i],CV_FONT_HERSHEY_SCRIPT_SIMPLEX,2,CV_RGB(0,0,255));
+			cv::putText(img,string(num),centres[i].p,CV_FONT_HERSHEY_SCRIPT_SIMPLEX,2,CV_RGB(0,0,255));
+			sc.visible=true;
 		}
+		centres_p.push_back(sc);
 	}
 	return(img);
 }
@@ -200,7 +269,7 @@ double dist(cv::Point p1,cv::Point p2)
 	return ((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
 }
 
-void trackpoint::nearest(vector<cv::Point> &inputcentres)
+void trackpoint::nearest(vector<showcircle> &inputcentres)
 {
 	for(unsigned int i=0;i<centres.size();i++)
 	{
@@ -210,9 +279,9 @@ void trackpoint::nearest(vector<cv::Point> &inputcentres)
 		for(unsigned int j=0;j<inputcentres.size();j++)
 		{
 			cv::Point nextpoint;
-			nextpoint.x=centres[i].x+motion[i].x;
-			nextpoint.y=centres[i].y+motion[i].y;
-			double tdist=dist(nextpoint,inputcentres[j]);
+			nextpoint.x=centres[i].p.x+motion[i].x;
+			nextpoint.y=centres[i].p.y+motion[i].y;
+			double tdist=dist(nextpoint,inputcentres[j].p);
 			if( tdist < DISTANCE_THRESH*DISTANCE_THRESH && tdist < maxdistance && age[i]>=0)
 			{
 				maxdistance=tdist;
@@ -222,10 +291,15 @@ void trackpoint::nearest(vector<cv::Point> &inputcentres)
 		
 		if(centre>=0)
 		{
-			motion[i]=inputcentres[centre]-centres[i];
+			motion[i]=inputcentres[centre].p-centres[i].p;
 			centres[i]=inputcentres[centre];
 			inputcentres.erase(inputcentres.begin()+centre);
 			age[i]=AGE_THRESH;
+		}
+		else
+		{
+			centres[i].p.x=centres[i].p.x+motion[i].x;
+			centres[i].p.y=centres[i].p.y+motion[i].y;
 		}
 		age[i]--;
 	}

@@ -12,18 +12,29 @@ using namespace std;
 
 #define DISTANCE_THRESH 50
 #define AGE_THRESH 4
+
+struct showcircle
+{
+	cv::Point p;
+	float z;
+	int radius;
+	bool visible;
+};
 class trackpoint
 {
-	vector<cv::Point> centres;
+	vector<showcircle> centres;
 	vector<cv::Point2f> motion;
 	vector<int> age;
-
-	cv::Point contourcentre(vector<cv::Point> c);
-	void nearest(vector<cv::Point> &inputcentres);
+	vector<showcircle> centres_p;
+	showcircle contourcentre(vector<cv::Point> c);
+	void nearest(vector<showcircle> &inputcentres);
 public:
+	
+
 	trackpoint();
 	~trackpoint();
 	cv::Mat update(vector<vector<cv::Point> > contour,cv::Mat img);
+	vector<showcircle> centre_return(){return centres_p;}
 };
 
 class Tracker
@@ -34,18 +45,22 @@ class Tracker
 	vector<cv::Mat> list_images;
 	vector<string> list_image_names;
 	vector<vector<vector<cv::Point> > >contours;
+	cv::Mat ref;
 	//functions
 	void load_images(string p,bool show);
-	void make_tracks();
+	void load_images_video(string p,bool show);
+	void make_tracks(bool show,int wait);
 public:
-	vector<vector<cv::Point> > tracks;
+	vector<vector<showcircle> > tracks;
 	
 	Tracker();
-	Tracker(string p);
+	Tracker(string p,bool choice);
+
 	~Tracker();
 	void clean_image(bool show);
 	void track_particles(bool show);
 	void optical_flow(bool show);
+	int imgrows,imgcols;
 	
 	friend class trackpoint;
 };
