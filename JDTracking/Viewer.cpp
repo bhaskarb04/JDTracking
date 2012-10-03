@@ -23,7 +23,7 @@ void Viewer::make_vector_proper()
 				
 				n.x=((GLfloat)tracks2[i][j].p.x/(GLfloat)imgcols);
 				n.y=1.0-((GLfloat)tracks2[i][j].p.y/(GLfloat)imgrows);
-				n.z=tracks2[i][j].z/255.0;
+				n.z=1.0-(tracks2[i][j].z/255.0);
 				n.num=i;
 				disppoints.push_back(n);
 			}
@@ -76,7 +76,9 @@ void Viewer::show_tracks(vector<vector<showcircle> > t,int r,int c)
 	tracks=t;
 	imgrows=r;
 	imgcols=c;
-	int maxsize=tracks[tracks.size()-1].size();
+	int maxsize=0;
+	for(unsigned int i=0;i<tracks.size();i++)
+		maxsize=(maxsize<tracks[i].size())?tracks[i].size():maxsize;
 	for(unsigned int i=0;i<maxsize;i++)
 	{
 		vector<showcircle> temp;
@@ -206,14 +208,14 @@ void Viewer::DrawTracks()
 void Viewer::DrawTracks(int end)
 {	
 	glPointSize(2.0);
-	cout<<end<<endl;	
-	//for(unsigned int i=0; i<=end && i<tracks.size();i++)
-	//{
-		int i=end;
+	//cout<<end<<endl;	
+	for(unsigned int i=0; i<=end && i<tracks.size();i++)
+	{
+		//int i=end;
 		for(unsigned int j=0;j<tracks[i].size();j++)
 		{
 			glColor3f(GLfloat(colorlist[j].r)/255.0,GLfloat(colorlist[j].g)/255.0,GLfloat(colorlist[j].b)/255.0);
-			//glBegin(GL_POINTS);
+			
 			if(tracks[i][j].visible)
 			{
 				//glPushMatrix();
@@ -221,16 +223,22 @@ void Viewer::DrawTracks(int end)
 				x=((GLfloat)tracks[i][j].p.x/(GLfloat)imgcols);
 				y=1.0-((GLfloat)tracks[i][j].p.y/(GLfloat)imgrows);
 				z=tracks[i][j].z/255.0;
-				//glVertex3f(x,y,z);
-				glPushMatrix();
-				glTranslatef(x,y,z);
-				glutSolidSphere(0.01,10,10);
-				glPopMatrix();
+				glBegin(GL_POINTS);
+				glVertex3f(x,y,z);
+				glEnd();
+				if(i==end)
+				{
+					glPushMatrix();
+					glTranslatef(x,y,z);
+					glutSolidSphere(0.01,10,10);
+					glPopMatrix();
+				}
+				
 			}
-			//glEnd();
+			
 		}
 		
-	//}
+	}
 	
 }
 
@@ -517,4 +525,14 @@ void Viewer::timerfunc()
 {
 	frame++;
 	frame=frame%tracks.size();
+	if(frame==0)
+		throw ("EXIT");
+	uchar *data=(uchar*)malloc(window_width*window_height*3);
+	glReadPixels(0,0,window_width,window_height,GL_RGB,GL_UNSIGNED_BYTE,data);
+	cv::Mat glCapture(window_height,window_width,CV_8UC3);
+	glCapture.data=data;
+	cv::flip(glCapture,glCapture,0);
+	glVideo.push_back(glCapture);
+	//cv::imshow("window",glCapture);
+	//cv::waitKey(10);
 }

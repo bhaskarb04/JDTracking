@@ -115,7 +115,7 @@ void Tracker::track_particles(bool show)
 {
 	cv::VideoWriter record("Contours.avi",CV_FOURCC('D','I','V','X'),30, list_images[0].size(), true);
 	vector<vector<cv::Point> > contour;
-	for(unsigned int i=0;i<list_images.size();i++)
+	for(unsigned int i=1;i<list_images.size();i++)
 	{
 		cv::Mat img;
 		if(list_images[i].channels()>1)
@@ -180,7 +180,12 @@ void Tracker::make_tracks(bool show,int wait)
 	for(unsigned int i=0;i<contours.size();i++)
 	{
 		cout<<i<<endl;
-		if(contours[i].size()==0) continue;
+		if(contours[i].size()==0) 
+		{
+			vector<showcircle> b;
+			tracks.push_back(b);
+			continue;
+		}
 		cv::Mat showimage=tt.update(contours[i],list_images_org[i]);
 		tracks.push_back(tt.centre_return());
 		record<<showimage;

@@ -6,6 +6,11 @@ Data checked
 ManyCotton
 ManyCorn
 
+3rd Oct
+*Fixed bug which did not keep relative position of the contour wrt the images
+*Added a video maker to create videos and make original with tracking videos side by side
+*Made glut main loop escapable
+
 As of 2nd Oct 2012
 *Added feature to add video instead of list of images. OpenCV bug avi not working convert to mp4 and does
 *Created 3 forms of visualization 2D and 3D 

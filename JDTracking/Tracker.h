@@ -60,6 +60,7 @@ public:
 	void clean_image(bool show);
 	void track_particles(bool show);
 	void optical_flow(bool show);
+	vector<cv::Mat> get_orig_images(){return list_images_org;}
 	int imgrows,imgcols;
 	
 	friend class trackpoint;

@@ -1,12 +1,12 @@
 #include "Tracker.h"
 #include "Viewer.h"
 #include "RWVector.h"
-#define TIMER_INTERVAL 100
+#define TIMER_INTERVAL 33
 GLint window_width=1000;
 GLint window_height=600;
 #define DISPLAY 1
 
-
+void make_video(vector<cv::Mat>,vector<cv::Mat>,string);
 Viewer *viewer;
 void Display(void)
 {
@@ -46,23 +46,26 @@ void TimerFunction(int value)
  {
 	//Tracker constructor loads the images from the path automatically.For now it is assumed to be png
 	//TODO: add functionality for other image formats(supported by opencv)
-	string s1="C:\\Users\\Bhaskar\\Desktop\\JDTracking\\Data\\";
-	string s2="ManyCotton2000Hz_2-Depth";
+	string s1="C:\\Users\\Bhaskar\\Documents\\Fall\ 2012\\Research\\JDTracking\\Data\\";
+	string s2="2Corn2000Hz_1";
 	string mp4file=".mp4";
 	string datfile=".dat";
 	//2Cotton2000Hz_1-Depth
 	//ManyCotton2000Hz_2-Depth
 	//ManyCorn2000Hz_2-Depth
+	//1Corn2000Hz_1
 	//Tracker track("C:\\Users\\Bhaskar\\Desktop\\JDTracking\\Take3-Images",false);
 	
 	string finalfile=s1+s2+mp4file;
 	string datafile=s2+datfile;
-	/*
+	string vidfile=s2+"_final.avi";
+	
 	Tracker track(finalfile,true);
+	
 	track.clean_image(true);
 	track.track_particles(true);
-	//save_vector(track.tracks,(char*)datafile.c_str(),track.imgrows,track.imgcols);
-	return 0;
+	save_vector(track.tracks,(char*)datafile.c_str(),track.imgrows,track.imgcols);
+	/*return 0;
 	*/
 	int imgrows,imgcols;
 	vector<vector<showcircle> >tracks2=read_vector((char*)datafile.c_str(),imgrows,imgcols);
@@ -84,7 +87,40 @@ void TimerFunction(int value)
 	else
 		viewer->Init2();
 	viewer->show_tracks(tracks2,imgrows,imgcols);
-
-	glutMainLoop();
+	try
+	{
+		glutMainLoop();
+	}
+	catch(char *e)
+	{
+		cout<<e<<endl;
+	}
+	make_video(track.get_orig_images(),viewer->get_glVideo(),vidfile);
 	 return 0;
+ }
+
+ void make_video(vector<cv::Mat>lhs,vector<cv::Mat>rhs,string vidname)
+ {
+	 if(lhs.size()==0 || rhs.size()==0 || (lhs.size() < rhs.size()))
+		 return;
+	 int bump=lhs.size() - rhs.size();
+	 cv::Size imgsize=lhs[0].size();
+	 cv::Mat vidimg(imgsize.height,2*imgsize.width,CV_8UC3);
+	 cv::VideoWriter video(vidname, CV_FOURCC('D','I','V','X'), 30, vidimg.size(), true);
+	 for(unsigned int i=0;i<rhs.size();i++)
+	 {
+		 cv::Mat l=lhs[i+bump];
+		 cv::Mat r=rhs[i];
+		 cv::Mat lroi=vidimg(cv::Rect(0,0,imgsize.width,imgsize.height));
+		 cv::Mat rroi=vidimg(cv::Rect(imgsize.width,0,imgsize.width,imgsize.height));
+		 cv::resize(rhs[i],r,imgsize);
+		 l.copyTo(lroi);
+		 r.copyTo(rroi);;
+		 cv::imshow("finalvideo",vidimg);
+		 cv::waitKey(10);
+		 video<<vidimg;
+		 video<<vidimg;
+		 video<<vidimg;
+	 }
+	 video.release();
  }

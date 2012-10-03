@@ -6,6 +6,7 @@
 #include <cv.h>
 #include <vector>
 #include <algorithm>
+#include <cstdlib>
 using namespace std;
 #include <glut.h>
 #include "Tracker.h"
@@ -34,6 +35,7 @@ class Viewer
 	vector<int>trackshow;
 	vector<Color> colorlist;
 	vector<newpoint> disppoints;
+	vector<cv::Mat> glVideo;
 
 	void Camera(int pickmode,int x,int y);
 	void DrawTracks();
@@ -55,6 +57,7 @@ public:
 	void reshape(GLint w,GLint h);
 	void MouseClick(GLint button,GLint state,GLint x,GLint y);
 	void timerfunc();
+	vector<cv::Mat> get_glVideo(){return glVideo;}
 };
 
 #endif
