@@ -179,7 +179,7 @@ void Tracker::make_tracks(bool show,int wait)
 	trackpoint tt;
 	for(unsigned int i=0;i<contours.size();i++)
 	{
-		cout<<i<<endl;
+		//cout<<i<<endl;
 		if(contours[i].size()==0) 
 		{
 			vector<showcircle> b;
@@ -188,6 +188,7 @@ void Tracker::make_tracks(bool show,int wait)
 		}
 		cv::Mat showimage=tt.update(contours[i],list_images_org[i]);
 		tracks.push_back(tt.centre_return());
+		//all_contours.push_back(contours);
 		record<<showimage;
 		record<<showimage;
 		record<<showimage;
@@ -237,10 +238,11 @@ cv::Mat trackpoint::update(vector<vector<cv::Point> >contour,cv::Mat img)
 	{
 		tempcentres.push_back(contourcentre(contour[i]));
 	}
-	nearest(tempcentres);
+	nearest(tempcentres,contour);
 	for(unsigned int i=0;i<tempcentres.size();i++)
 	{
 		centres.push_back(tempcentres[i]);
+		centres[centres.size()-1].contour.assign(contour[i].begin(),contour[i].end());
 		motion.push_back(cvPoint(0,0));
 		age.push_back(AGE_THRESH);
 	}
@@ -256,6 +258,8 @@ cv::Mat trackpoint::update(vector<vector<cv::Point> >contour,cv::Mat img)
 
 		cv::Vec3b blah=img.at<cv::Vec3b>(yy,xx);
 		sc.z=(255-blah.val[0]);
+		sc.age=age[i];
+		sc.contour.assign(centres[i].contour.begin(),centres[i].contour.end());
 		if(age[i]>0)
 		{
 			char num[5];
@@ -274,7 +278,7 @@ double dist(cv::Point p1,cv::Point p2)
 	return ((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
 }
 
-void trackpoint::nearest(vector<showcircle> &inputcentres)
+void trackpoint::nearest(vector<showcircle> &inputcentres, vector<vector<cv::Point> >&contours)
 {
 	for(unsigned int i=0;i<centres.size();i++)
 	{
@@ -298,8 +302,11 @@ void trackpoint::nearest(vector<showcircle> &inputcentres)
 		{
 			motion[i]=inputcentres[centre].p-centres[i].p;
 			centres[i]=inputcentres[centre];
+			centres[i].contour.assign(contours[centre].begin(),contours[centre].end());
 			inputcentres.erase(inputcentres.begin()+centre);
+			contours.erase(contours.begin()+centre);
 			age[i]=AGE_THRESH;
+
 		}
 		else
 		{

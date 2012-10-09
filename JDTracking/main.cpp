@@ -47,7 +47,7 @@ void TimerFunction(int value)
 	//Tracker constructor loads the images from the path automatically.For now it is assumed to be png
 	//TODO: add functionality for other image formats(supported by opencv)
 	string s1="C:\\Users\\Bhaskar\\Documents\\Fall\ 2012\\Research\\JDTracking\\Data\\";
-	string s2="2Corn2000Hz_1";
+	string s2="ManyCotton2000Hz_2-Depth";
 	string mp4file=".mp4";
 	string datfile=".dat";
 	//2Cotton2000Hz_1-Depth
@@ -58,17 +58,20 @@ void TimerFunction(int value)
 	
 	string finalfile=s1+s2+mp4file;
 	string datafile=s2+datfile;
-	string vidfile=s2+"_final.avi";
+	string datafile2=s2+"2"+datfile;
+	string vidfile=s2+"_final2.avi";
 	
 	Tracker track(finalfile,true);
 	
-	track.clean_image(true);
-	track.track_particles(true);
+	track.clean_image(false);
+	track.track_particles(false);
 	save_vector(track.tracks,(char*)datafile.c_str(),track.imgrows,track.imgcols);
-	/*return 0;
-	*/
+	//save_contour(track.get_contours(),(char*)datafile2.c_str());
+	//return 0;
+	
 	int imgrows,imgcols;
 	vector<vector<showcircle> >tracks2=read_vector((char*)datafile.c_str(),imgrows,imgcols);
+	//vector<vector<vector<cv::Point> > > contours=read_contour((char*)datafile2.c_str());
 	glutInit(&argc,argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(window_width,window_height);
@@ -87,6 +90,7 @@ void TimerFunction(int value)
 	else
 		viewer->Init2();
 	viewer->show_tracks(tracks2,imgrows,imgcols);
+	//viewer->show_contours(contours);
 	try
 	{
 		glutMainLoop();

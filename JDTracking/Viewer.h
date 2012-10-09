@@ -32,6 +32,7 @@ class Viewer
 	int frame;
 	vector<vector<showcircle> > tracks;
 	vector<vector<showcircle> > tracks2;
+	vector<vector<vector<cv::Point> > > contours;
 	vector<int>trackshow;
 	vector<Color> colorlist;
 	vector<newpoint> disppoints;
@@ -50,6 +51,7 @@ public:
 	void Init();
 	void Init2();
 	void show_tracks(vector<vector<showcircle> >tracks,int imgrows,int imgcols);
+	void show_contours(vector<vector<vector<cv::Point> > > cc);
 	void display();
 	void display2();
 	void KeyboardNormal(unsigned char key,int x, int y);

@@ -19,7 +19,10 @@ struct showcircle
 	float z;
 	int radius;
 	bool visible;
+	int age;
+	vector<cv::Point> contour;
 };
+
 class trackpoint
 {
 	vector<showcircle> centres;
@@ -27,7 +30,7 @@ class trackpoint
 	vector<int> age;
 	vector<showcircle> centres_p;
 	showcircle contourcentre(vector<cv::Point> c);
-	void nearest(vector<showcircle> &inputcentres);
+	void nearest(vector<showcircle> &inputcentres, vector<vector<cv::Point> >&contours);
 public:
 	
 
@@ -45,6 +48,7 @@ class Tracker
 	vector<cv::Mat> list_images;
 	vector<string> list_image_names;
 	vector<vector<vector<cv::Point> > >contours;
+	vector<vector<vector<cv::Point> > > all_contours;
 	cv::Mat ref;
 	//functions
 	void load_images(string p,bool show);
@@ -61,6 +65,7 @@ public:
 	void track_particles(bool show);
 	void optical_flow(bool show);
 	vector<cv::Mat> get_orig_images(){return list_images_org;}
+	vector<vector<vector<cv::Point> > > get_contours(){return contours;}
 	int imgrows,imgcols;
 	
 	friend class trackpoint;

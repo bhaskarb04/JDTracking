@@ -1,7 +1,7 @@
 #include "Viewer.h"
 
 #define PI 3.1415926535
-double Xdir=-0.2,Ydir=0.5,Zdir=2.5;
+double Xdir=0,Ydir=0.5,Zdir=2.5;
 double step=0.5;
 #define XY 1
 #define YZ 2
@@ -114,6 +114,11 @@ void Viewer::show_tracks(vector<vector<showcircle> > t,int r,int c)
 	}*/
 }
 
+void Viewer::show_contours(vector<vector<vector<cv::Point> > > cc)
+{
+	contours=cc;
+}
+
 void Viewer::display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -212,10 +217,10 @@ void Viewer::DrawTracks(int end)
 	for(unsigned int i=0; i<=end && i<tracks.size();i++)
 	{
 		//int i=end;
+		int count=0;
 		for(unsigned int j=0;j<tracks[i].size();j++)
 		{
 			glColor3f(GLfloat(colorlist[j].r)/255.0,GLfloat(colorlist[j].g)/255.0,GLfloat(colorlist[j].b)/255.0);
-			
 			if(tracks[i][j].visible)
 			{
 				//glPushMatrix();
@@ -224,7 +229,7 @@ void Viewer::DrawTracks(int end)
 				y=1.0-((GLfloat)tracks[i][j].p.y/(GLfloat)imgrows);
 				z=tracks[i][j].z/255.0;
 				glBegin(GL_POINTS);
-				glVertex3f(x,y,z);
+					glVertex3f(x,y,z);
 				glEnd();
 				if(i==end)
 				{
@@ -232,6 +237,25 @@ void Viewer::DrawTracks(int end)
 					glTranslatef(x,y,z);
 					glutSolidSphere(0.01,10,10);
 					glPopMatrix();
+					////cout<<i<<" "<<j<<endl;
+					//if(tracks[i][j].age < AGE_THRESH -1 || j > contours[i].size()-1)
+					//{
+					//	count++;
+					//	continue;
+					//}
+					vector<cv::Point> c=tracks[i][j].contour;
+					glBegin(GL_POLYGON);
+					for(unsigned int ii=0;ii<c.size();ii++)
+					{
+						double xx,yy,zz;
+						xx=((GLfloat)c[ii].x/(GLfloat)imgcols);
+						yy=1.0-((GLfloat)c[ii].y/(GLfloat)imgrows);
+						zz=z;
+						
+							glVertex3f(xx,yy,zz);
+						
+					}
+					glEnd();
 				}
 				
 			}
@@ -521,12 +545,20 @@ void Viewer::display2()
 
 	glutSwapBuffers();
 }
+int movestep=1;
 void Viewer::timerfunc()
 {
 	frame++;
 	frame=frame%tracks.size();
+	rotY=rotY+movestep;
+	if(rotY>59)
+		movestep=-1;
+	if(rotY < -59)
+		movestep=1;
 	if(frame==0)
+	{
 		throw ("EXIT");
+	}
 	uchar *data=(uchar*)malloc(window_width*window_height*3);
 	glReadPixels(0,0,window_width,window_height,GL_RGB,GL_UNSIGNED_BYTE,data);
 	cv::Mat glCapture(window_height,window_width,CV_8UC3);

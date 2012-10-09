@@ -6,7 +6,12 @@ Data checked
 ManyCotton
 ManyCorn
 
-3rd Oct
+As of 9th Oct 2012
+
+*Rearranged the way vecctor writing is done. Showcircle has coressponding contour(if visible)
+*Added contour view of the 3Dpoint
+
+As of 3rd Oct 2012
 *Fixed bug which did not keep relative position of the contour wrt the images
 *Added a video maker to create videos and make original with tracking videos side by side
 *Made glut main loop escapable
