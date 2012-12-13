@@ -37,6 +37,8 @@
 #define NO_LOOPS 1
 #define TRANS_STEP 500
 
+
+class OSGViewer;
 class osgView : public osg::Referenced
 {
 	int xmax,ymax,zmax,totalelements,maxsize,animationcount,animationend;
@@ -52,7 +54,6 @@ class osgView : public osg::Referenced
 	osg::ref_ptr<osg::Transform> tractor,tractorplate;
 	bool set_track,drawA;
 	vector<vector<bool> >visible;
-	osgViewer::Viewer viewer;
 	osg::ref_ptr<osg::Image> image;
 	vector<vector<vector<osg::Vec3d> > >contourlist;
 	bool pause_flag;
@@ -71,8 +72,8 @@ class osgView : public osg::Referenced
 public:
 	osgView();
 	~osgView();
-	void setmax(int,int,int,double);
-	void set_tracks(vector<vector<showcircle> > t);
+	void _setmax(int,int,int,double);
+	void _settracks(vector<vector<showcircle> > t);
 	//void set_contours(vector<vector<float
 	void update(float time);
 	void update2(float time);
@@ -82,6 +83,7 @@ public:
 
 	vector<cv::Mat> osgVideo;
 	friend class myKeyboardEventHandler;
+	friend class OSGViewer;
 };
 
 class myKeyboardEventHandler : public osgGA::GUIEventHandler
@@ -106,6 +108,19 @@ public:
       }
       traverse(node, nv); 
    }
+};
+
+class OSGViewer
+{
+	osgView *osgview;
+	osg::Image *image;
+public:
+	OSGViewer(){osgview=new osgView;}
+	~OSGViewer(){delete osgview;}
+	void setmax(int a,int b,int c,double d){osgview->_setmax(a,b,c,d);}
+	void settracks(vector<vector<showcircle> > t){osgview->_settracks(t);}
+	void run();
+	vector<cv::Mat> getVideoVector(){return osgview->osgVideo;}
 };
 
 #endif

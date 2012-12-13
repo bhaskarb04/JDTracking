@@ -6,6 +6,12 @@ Data checked
 ManyCotton
 ManyCorn
 
+As of 13th Oct 2012
+*New Folder JDTracking2 for osg
+*Changed to VS2008 because osg wasnt working well with VS2010 for some reason
+*Added osgViewing now
+*Will remove OpenGL component (kept as backup for Deere Day)
+
 As of 9th Oct 2012
 
 *Rearranged the way vecctor writing is done. Showcircle has coressponding contour(if visible)

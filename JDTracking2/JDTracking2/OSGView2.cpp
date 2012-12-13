@@ -1,4 +1,4 @@
-#include "OSGView.h"
+#include "OSGView2.h"
 
 osgView::osgView()
 {
@@ -184,8 +184,6 @@ void osgView::update(float time)
 	{
 		if(--loopme)
 			animationcount=1;
-		else
-			viewer.setDone(true);
 	}
 }
 
@@ -241,12 +239,11 @@ void osgView::update2(float time)
 	animationcount++;
 	if(animationcount == animationend && LOOP)
 		animationcount=1;
-	if(animationcount == animationend && !LOOP)
-		viewer.setDone(true);
 }
 
 void osgView::drawAnimation()
 {
+	osgViewer::Viewer viewer;
 	osg::Camera *cam= new osg::Camera();
 	osg::ref_ptr<osg::Group> root = new osg::Group();
 	myKeyboardEventHandler* myFirstEventHandler = new myKeyboardEventHandler(this);
@@ -322,6 +319,7 @@ void osgView::drawAnimation()
 }
 void osgView::drawAnimation2()
 {
+	osgViewer::Viewer viewer;
 	osg::Camera *cam= new osg::Camera();
 	osg::ref_ptr<osg::Group> root = new osg::Group();
 	myKeyboardEventHandler* myFirstEventHandler = new myKeyboardEventHandler(this);
@@ -392,7 +390,7 @@ osgView::~osgView()
 
 }
 
-void osgView::setmax(int x,int y,int z,double depth)
+void osgView::_setmax(int x,int y,int z,double depth)
 {
 	xmax=x*SCALE;
 	ymax=y*SCALE;
@@ -428,7 +426,7 @@ void osgView::makeColorlist(vector<vector<showcircle> > tracks)
 		bb+=30;
 	}
 }
-void osgView::set_tracks(vector<vector<showcircle> > t)
+void osgView::_settracks(vector<vector<showcircle> > t)
 {
 	makeColorlist(t);
 	set_track=true;
@@ -532,22 +530,15 @@ void osgView::drawFlowAnimation()
 	transform->setPosition(osg::Vec3(0,0,0));
 	transform->addChild(temp);
 	transform->setPosition(osg::Vec3(0,0,0));
-	//transform[1].addChild(temp);
-	//transform[1].setPosition(osg::Vec3(0,0,0));
 	return;
 }
 void osgView::getvideo()
 {
 	image->readPixels(0,0,WINDOW_WIDTH,WINDOW_HEIGHT, GL_BGR,GL_UNSIGNED_BYTE); 
-	//uchar *data=(uchar*)malloc(WINDOW_WIDTH*WINDOW_HEIGHT*3);
-	//glReadPixels(0,0,WINDOW_WIDTH,WINDOW_HEIGHT,GL_RGB,GL_UNSIGNED_BYTE,data);
 	cv::Mat glCapture(WINDOW_HEIGHT,WINDOW_WIDTH,CV_8UC3);
 	memcpy(glCapture.data,image->data(),WINDOW_WIDTH*WINDOW_HEIGHT*3);
 	cv::flip(glCapture,glCapture,0);
 	osgVideo.push_back(glCapture);
-	//viewer.getCameraManipulator()->setHomePosition(osg::Vec3d(1200,1200,1200),osg::Vec3d(0,0,0),osg::Vec3d(0,-1,0));
-	//cv::imshow("asa",glCapture);
-	//cv::waitKey(10);
 }
 
 
@@ -616,4 +607,75 @@ bool myKeyboardEventHandler::handle(const osgGA::GUIEventAdapter& ea,osgGA::GUIA
       return false;
    }
 
+}
+
+void OSGViewer::run()
+{
+	osgViewer::Viewer viewer;
+	ParticleCallback *ndc=new ParticleCallback;
+	osg::Camera *cam= new osg::Camera();
+	osg::ref_ptr<osg::Group> root = new osg::Group();
+	myKeyboardEventHandler* myFirstEventHandler = new myKeyboardEventHandler(this->osgview);
+	osgview->tractor = new osg::Transform();
+	osgview->tractorplate = new osg::Transform();
+	osgview->xtrans_object=-osgview->xmax/2;
+	osgview->ytrans_object=osgview->ymax/2;
+	osgview->ztrans_object=-10000;
+	//Lighting
+	osg::Light *light=new osg::Light();
+	light->setAmbient(osg::Vec4d(0.5,0.5,0.5,0.0));
+	//light->setConstantAttenuation(0.5);
+	light->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 0.0));
+	light->setPosition(osg::Vec4d(-10000,-5000,0,1.0));
+	osg::LightSource * lightsource = new osg::LightSource();
+	lightsource->setLight(light);
+	//call drawing methods
+	osgview->axes=osgview->drawAxes();
+	if(WITH_MODEL_PLATE)
+	osgview->tractorplate->addChild(osgview->drawTractorplate());
+	if(WITH_MODEL);
+		//osgview->tractor->addChild(osgview->drawTractor());
+	if(osgview->set_track)
+		osgview->drawFlowAnimation();
+	
+	//link to root
+	root->addChild(osgview->axes);
+	root->addChild(lightsource);
+	if(WITH_MODEL_PLATE)
+		root->addChild(osgview->tractorplate);
+	if(WITH_MODEL)
+		root->addChild(osgview->tractor);
+	if(osgview->set_track)
+	{
+		//root->addChild(osgview->transform->asPositionAttitudeTransform());
+		root->setUserData(osgview);
+		root->setUpdateCallback(ndc);
+	}
+	//set to viewer and draw
+	viewer.addEventHandler(myFirstEventHandler); 
+	viewer.setSceneData( root );
+	//viewer.getCamera()->setProjectionMatrixAsPerspective(45.0, 1.0, 0.5, 1000); 
+	viewer.setUpViewInWindow(10,10,WINDOW_WIDTH,WINDOW_HEIGHT,0);
+	viewer.setCameraManipulator(new osgGA::TrackballManipulator);
+	viewer.getCameraManipulator()->setHomePosition(osg::Vec3d(-10000,5000,100000),
+		osg::Vec3d(-osgview->xmax/2,osgview->ymax/2,0),osg::Vec3d(0,-1,0));
+	//viewer.getCamera()->setViewMatrixAsLookAt(osg::Vec3d(200,200,200),osg::Vec3d(0,0,0),osg::Vec3d(0,1,0));
+	//viewer.setCamera(cam);
+	viewer.home();
+	viewer.realize();
+	//viewer.getCamera()->setFinalDrawCallback(
+	image=new osg::Image();
+	viewer.getCamera()->attach(osg::Camera::COLOR_BUFFER, image);
+	while(!viewer.done())
+	{
+		viewer.frame();
+		if(osgview->set_track)
+		{
+			//if(!LOOP)
+				//osgview->getvideo();
+			//update(TIMER_);
+		}
+		if(osgview->animationcount == osgview->animationend && !LOOP)
+			break;
+	}
 }

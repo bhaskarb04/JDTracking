@@ -113,6 +113,8 @@ void Tracker::clean_image(bool show)
 
 void Tracker::track_particles(bool show)
 {
+	bgdepth=0;
+	bgspots=0;
 	cv::VideoWriter record("Contours.avi",CV_FOURCC('D','I','V','X'),30, list_images[0].size(), true);
 	vector<vector<cv::Point> > contour;
 	for(unsigned int i=1;i<list_images.size();i++)
@@ -126,8 +128,15 @@ void Tracker::track_particles(bool show)
 		for(unsigned j=0;contour.size()>0 && j<contour.size();j++)
 		{
 			double area=cv::contourArea(contour[j]);
-			if( area< img.rows*img.cols*0.001)
+			if( area< img.rows*img.cols*0.005)
 			{
+				trackpoint tt;
+				showcircle temp=tt.contourcentre(contour[j]);
+				int xx=max(0,min(img.cols-1,temp.p.x));
+				int yy=max(0,min(img.rows-1,temp.p.y));
+				cv::Vec3b blah=list_images[i].at<cv::Vec3b>(yy,xx);
+				bgdepth+=blah.val[0];
+				bgspots++;
 				contour.erase(contour.begin()+j);
 				j--;
 			}
@@ -253,17 +262,18 @@ cv::Mat trackpoint::update(vector<vector<cv::Point> >contour,cv::Mat img)
 		sc.p=centres[i].p;
 		sc.visible=false;
 		sc.radius=centres[i].radius;
-		int xx=max(0,min(img.cols-1,centres[i].p.x));
-		int yy=max(0,min(img.rows-1,centres[i].p.y));
+		cv::Point c(centres[i].p.x-motion[i].x,centres[i].p.y-motion[i].y);
+		int xx=max(0,min(img.cols-1,c.x));
+		int yy=max(0,min(img.rows-1,c.y));
 
 		cv::Vec3b blah=img.at<cv::Vec3b>(yy,xx);
 		sc.z=(255-blah.val[0]);
 		sc.age=age[i];
 		sc.contour.assign(centres[i].contour.begin(),centres[i].contour.end());
-		if(age[i]>0)
+		if(age[i]>AGE_THRESH - 2)
 		{
 			char num[5];
-			cv::circle(img,centres[i].p,3,CV_RGB(255,0,0),1);
+			cv::circle(img,c,3,CV_RGB(255,0,0),1);
 			_itoa(i,num,10);
 			//cv::putText(img,string(num),centres[i].p,CV_FONT_HERSHEY_SCRIPT_SIMPLEX,2,CV_RGB(0,0,255));
 			sc.visible=true;
