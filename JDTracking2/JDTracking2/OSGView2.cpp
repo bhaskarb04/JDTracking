@@ -9,6 +9,7 @@ osgView::osgView()
 	pause_flag=false;
 	loopme=NO_LOOPS;
 	xtrans_particle=ytrans_particle=ztrans_particle=0;
+	main_node= new osg::Group();
 }
 
 osg::ref_ptr<osg::Geode> osgView::drawAxes()
@@ -184,6 +185,91 @@ void osgView::update(float time)
 	{
 		if(--loopme)
 			animationcount=1;
+	}
+}
+
+
+
+void osgView::update3()
+{
+	if(pause_flag)
+		return;
+	if(transform->getNumChildren() > 1)
+		transform->removeChild(1,transform->getNumChildren()-1);
+	for(animationcount=0;animationcount<animationend;animationcount++)
+	{
+		osg::ref_ptr<osg::Geode> new_flow=new osg::Geode;
+		osg::ref_ptr<osg::Geometry> geom = new osg::Geometry;
+		osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array(totalelements);
+		osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(totalelements);
+		osg::StateSet* stateset = new osg::StateSet;
+		stateset->setMode(GL_LIGHTING,osg::StateAttribute::ON);
+		stateset->setAttribute(new osg::Point(3.0f),osg::StateAttribute::ON);
+		int count=0;
+		osg::Switch *sw = new osg::Switch();
+		for(unsigned int i=0;i<animationcount;i++)
+		{
+			if(tracks[i]->getNumElements())
+			{
+				for(unsigned int j=0;j<tracks[i]->getNumElements();j++)
+				{
+					if(!visible[i][j])
+						continue;
+					(*vertices)[count]=(*tracks[i])[j];
+					(*vertices)[count].set(-(*vertices)[count].x()*SCALE+xtrans_particle,
+						(*vertices)[count].y()*SCALE+ytrans_particle,
+						(*vertices)[count].z()*SCALE*zscale+ztranslate+ztrans_particle);
+					(*colors)[count]=(*colorlist)[j];
+					count++;
+					if(i == animationcount - 1)
+					{	
+						osg::ref_ptr<osg::Sphere> cogs = new osg::Sphere((*vertices)[count-1],5.0*SCALE);
+						osg::ref_ptr<osg::ShapeDrawable> cogDrawable = new osg::ShapeDrawable(cogs);
+						osg::ref_ptr<osg::Geode> cogGeode = new osg::Geode();
+						cogGeode->addDrawable(cogDrawable);
+						transform->addChild(cogGeode);
+						sw->addChild(cogGeode);
+						osg::ref_ptr<osg::Geode> cont_flow=new osg::Geode;
+						osg::ref_ptr<osg::Geometry> contgeom = new osg::Geometry;
+						osg::ref_ptr<osg::Vec3Array> contvertices = new osg::Vec3Array(contourlist[i][j].size());
+						osg::ref_ptr<osg::Vec4Array> contcolor= new osg::Vec4Array;
+						contcolor->push_back((*colorlist)[j]);
+						for(unsigned int k=0;k<contourlist[i][j].size();k++)
+						{
+							(*contvertices)[k]=contourlist[i][j][k];
+							(*contvertices)[k].set(-(*contvertices)[k].x()*SCALE+xtrans_particle,
+								(*contvertices)[k].y()*SCALE+ytrans_particle,
+								(*contvertices)[k].z()*SCALE*zscale+ztranslate+ztrans_particle);
+						}
+						osg::ref_ptr<osg::DrawArrays>contindices =new osg::DrawArrays(osg::PrimitiveSet::POLYGON,0,contourlist[i][j].size());
+						contgeom->setVertexArray( contvertices.get() );
+						contgeom->setColorArray(contcolor);
+						contgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+						contgeom->addPrimitiveSet(contindices.get());
+						
+						//stateset->setAttribute(new osg::point( 3.0f ),osg::StateAttribute::ON);
+						contgeom->setStateSet(stateset);
+						cont_flow->addDrawable(contgeom);
+						transform->addChild(cont_flow);
+						sw->addChild(cont_flow);
+					}
+				}
+
+			}
+		}
+		osg::ref_ptr<osg::DrawArrays>indices =new osg::DrawArrays(osg::PrimitiveSet::POINTS,0,totalelements);
+		geom->setVertexArray( vertices.get() );
+		geom->setColorArray(colors.get());
+		geom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+		geom->addPrimitiveSet( indices.get() );
+		
+		//stateset->setAttribute(new osg::point( 3.0f ),osg::StateAttribute::ON);
+		geom->setStateSet(stateset);
+		new_flow->addDrawable(geom);
+		transform->setChild(0,new_flow);
+		sw->addChild(new_flow);
+		sw->setAllChildrenOff();
+		main_node->addChild(sw);
 	}
 }
 
@@ -530,6 +616,7 @@ void osgView::drawFlowAnimation()
 	transform->setPosition(osg::Vec3(0,0,0));
 	transform->addChild(temp);
 	transform->setPosition(osg::Vec3(0,0,0));
+	//transform->setUpdateCallback(ndc);
 	return;
 }
 void osgView::getvideo()
@@ -612,15 +699,15 @@ bool myKeyboardEventHandler::handle(const osgGA::GUIEventAdapter& ea,osgGA::GUIA
 void OSGViewer::run()
 {
 	osgViewer::Viewer viewer;
-	ParticleCallback *ndc=new ParticleCallback;
 	osg::Camera *cam= new osg::Camera();
 	osg::ref_ptr<osg::Group> root = new osg::Group();
-	myKeyboardEventHandler* myFirstEventHandler = new myKeyboardEventHandler(this->osgview);
-	osgview->tractor = new osg::Transform();
-	osgview->tractorplate = new osg::Transform();
-	osgview->xtrans_object=-osgview->xmax/2;
-	osgview->ytrans_object=osgview->ymax/2;
-	osgview->ztrans_object=-10000;
+	ParticleCallback *ndc=new ParticleCallback;
+	myKeyboardEventHandler* myFirstEventHandler = new myKeyboardEventHandler(this->osgv);
+	osgv->tractor = new osg::Transform();
+	osgv->tractorplate = new osg::Transform();
+	osgv->xtrans_object=-osgv->xmax/2;
+	osgv->ytrans_object=osgv->ymax/2;
+	osgv->ztrans_object=-10000;
 	//Lighting
 	osg::Light *light=new osg::Light();
 	light->setAmbient(osg::Vec4d(0.5,0.5,0.5,0.0));
@@ -630,26 +717,34 @@ void OSGViewer::run()
 	osg::LightSource * lightsource = new osg::LightSource();
 	lightsource->setLight(light);
 	//call drawing methods
-	osgview->axes=osgview->drawAxes();
+	osgv->axes=osgv->drawAxes();
+	osgv->axes->setDataVariance(osg::Object::STATIC);
 	if(WITH_MODEL_PLATE)
-	osgview->tractorplate->addChild(osgview->drawTractorplate());
+	osgv->tractorplate->addChild(osgv->drawTractorplate());
+	osgv->tractorplate->setDataVariance(osg::Object::STATIC);
 	if(WITH_MODEL);
-		//osgview->tractor->addChild(osgview->drawTractor());
-	if(osgview->set_track)
-		osgview->drawFlowAnimation();
+		//osgv->tractor->addChild(osgv->drawTractor());
+	if(osgv->set_track)
+		osgv->drawFlowAnimation();
 	
 	//link to root
-	root->addChild(osgview->axes);
+	root->addChild(osgv->axes);
 	root->addChild(lightsource);
 	if(WITH_MODEL_PLATE)
-		root->addChild(osgview->tractorplate);
+		root->addChild(osgv->tractorplate);
 	if(WITH_MODEL)
-		root->addChild(osgview->tractor);
-	if(osgview->set_track)
+		root->addChild(osgv->tractor);
+	if(osgv->set_track)
 	{
-		//root->addChild(osgview->transform->asPositionAttitudeTransform());
-		root->setUserData(osgview);
+		//osgv->transform->setUpdateCallback(pcb);
+		osgv->update3();
+		osgv->transform->setDataVariance(osg::Object::STATIC);
+		osgv->main_node->setDataVariance(osg::Object::DYNAMIC);
+		root->addChild(osgv->transform->asPositionAttitudeTransform());
+		root->addChild(osgv->main_node);
 		root->setUpdateCallback(ndc);
+		//root->setUserData(osgv);
+		
 	}
 	//set to viewer and draw
 	viewer.addEventHandler(myFirstEventHandler); 
@@ -658,7 +753,7 @@ void OSGViewer::run()
 	viewer.setUpViewInWindow(10,10,WINDOW_WIDTH,WINDOW_HEIGHT,0);
 	viewer.setCameraManipulator(new osgGA::TrackballManipulator);
 	viewer.getCameraManipulator()->setHomePosition(osg::Vec3d(-10000,5000,100000),
-		osg::Vec3d(-osgview->xmax/2,osgview->ymax/2,0),osg::Vec3d(0,-1,0));
+		osg::Vec3d(-osgv->xmax/2,osgv->ymax/2,0),osg::Vec3d(0,-1,0));
 	//viewer.getCamera()->setViewMatrixAsLookAt(osg::Vec3d(200,200,200),osg::Vec3d(0,0,0),osg::Vec3d(0,1,0));
 	//viewer.setCamera(cam);
 	viewer.home();
@@ -666,16 +761,20 @@ void OSGViewer::run()
 	//viewer.getCamera()->setFinalDrawCallback(
 	image=new osg::Image();
 	viewer.getCamera()->attach(osg::Camera::COLOR_BUFFER, image);
-	while(!viewer.done())
+	viewer.run();
+	osgDB::writeNodeFile(*root,"abcd.osg",new osgDB::Options);
+	/*while(!viewer.done())
 	{
 		viewer.frame();
-		if(osgview->set_track)
+		if(osgv->set_track)
 		{
 			//if(!LOOP)
-				//osgview->getvideo();
+				//osgv->getvideo();
 			//update(TIMER_);
 		}
-		if(osgview->animationcount == osgview->animationend && !LOOP)
+		if(osgv->animationcount == osgv->animationend && !LOOP)
 			break;
 	}
+	*/
+	//osgv->transform->removeUpdateCallback(pcb);
 }

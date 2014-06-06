@@ -65,9 +65,9 @@ osg::ref_ptr<osg::PositionAttitudeTransform> osgView::drawTractor()
 {
 	string s;
 	if(!WITH_HEAD)
-		s=string(FILE_PATH) + "Combinewithouthead.ive";
+		s=string(FILE_PATH) + "ptoi_nowheels_nohitch.ive";
 	else
-		s=string(FILE_PATH) + "Combinewithouthead.ive";
+		s=string(FILE_PATH) + "ptoi_nowheels_nohitch.ive";
 	osg::ref_ptr<osg::PositionAttitudeTransform> mytransform = new osg::PositionAttitudeTransform();
 	mytransform->addChild(osgDB::readNodeFile(s)); 
 	/*mytransform->setAttitude(osg::Quat(osg::DegreesToRadians(90.0f),osg::Vec3d(1.0,0.0,0.0),
@@ -311,10 +311,10 @@ void osgView::drawAnimation()
 			if(!LOOP)
 				getvideo();
 			update(TIMER_);
-			sprintf(num,"%d",count);
+			/*sprintf(num,"%d",count);
 			string final=fname+string(num)+ending;
 			osgDB::writeNodeFile(*transform,final,new osgDB::Options);
-			count++;
+			count++;*/
 		}
 		
 	}
@@ -617,3 +617,133 @@ bool myKeyboardEventHandler::handle(const osgGA::GUIEventAdapter& ea,osgGA::GUIA
    }
 
 }
+#define IMGSIZE 576
+void osgView::set_depthmap(string filename,int start, int end){
+	cv::Mat depthmap=cv::Mat::zeros(cv::Size(IMGSIZE,IMGSIZE),CV_32FC1);
+	for(size_t i=2;i<2+contourlist.size();i++){
+		char num[5];
+		sprintf(num,"%3d",i);
+		string s=filename+string(num)+string(".raw");
+		FILE *fp=fopen(s.c_str(),"r");
+		if(!fp){
+			cout<<"Error reading file"<<endl;
+			return;
+		}
+		float *data=new float[IMGSIZE*IMGSIZE];
+		fread(data,sizeof(float),IMGSIZE*IMGSIZE,fp);
+		depthmap.data=(uchar*)data;
+		depthmaps.push_back(depthmap);
+	}
+	//TODO: Add delaunay triangulation to get 3D meshes
+	for(size_t i=0;i<contourlist.size();i++){
+		vector<osg::Geometry *> frame_geom;
+		for(size_t j=0;j<contourlist[i].size();j++){
+			vector<cv::Point2f> contour;
+			osg::Vec3Array* bounds = new osg::Vec3Array;
+			for(size_t k=0;k<contourlist[i][j].size();k++){
+				contour.push_back(cv::Point2f(contourlist[i][j][k].x(),contourlist[i][j][k].y()));
+				float f=depthmaps[i].at<float>(contourlist[i][j][k].y(),contourlist[i][j][k].x());
+				if(f!=f)
+					continue;
+				bounds->push_back(osg::Vec3f(contourlist[i][j][k].x(),contourlist[i][j][k].y(),f));
+			}
+			osg::ref_ptr<osgUtil::DelaunayConstraint> constraint = new osgUtil::DelaunayConstraint;
+			constraint->setVertexArray(bounds);
+			constraint->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINE_LOOP,0,bounds->size()));
+			osg::ref_ptr<osgUtil::DelaunayTriangulator> trig = new osgUtil::DelaunayTriangulator();
+			cv::Mat mask = cv::Mat::zeros(cv::Size(IMGSIZE,IMGSIZE), CV_8UC1);
+			cv::drawContours(mask, contour, i, cv::Scalar(255), CV_FILLED);
+			cv::Mat depthROI;
+			depthmaps[i].copyTo(depthROI,mask);
+			osg::Vec3Array* points = new osg::Vec3Array;
+			for(int x=0;x<depthROI.cols;x++){
+				for(int y=0;y<depthROI.rows;y++){
+					float f=depthROI.at<float>(y,x);
+					if(f==0)
+						continue;
+					if(f!=f)
+						continue;
+					points->push_back(osg::Vec3f(x,y,f));
+				}
+			}
+			trig->setInputPointArray(points);
+			trig->addInputConstraint(constraint.get());
+			trig->triangulate();
+
+			osg::Geometry* gm = new osg::Geometry;
+			gm->setVertexArray(points);
+			gm->addPrimitiveSet(trig->getTriangles());
+			osg::Vec4Array* colors = new osg::Vec4Array(1);
+			colors->push_back((*colorlist)[j]);
+			gm->setColorArray(colors);
+			gm->setColorBinding(osg::Geometry::BIND_OVERALL);
+		}
+	}
+	
+	
+}
+/*
+void osgView::convert2vtk(string name)
+{
+	string filebegin=name;
+	string fileend=".vtk";
+	for(animationcount=0;animationcount<animationend;animationcount++)
+	{
+		char filenum[5];
+		sprintf(num,"_%3d",animationcount);
+		string filename=filebegin+string(num)+fileend;
+		for(unsigned int i=0;i<animationcount;i++)
+		{
+			std::fstream filewriter;
+			filewriter.open((char*)filename.c_str(),std::fstream::out);
+			filewriter<<"# vtk DataFile Version 2.0\n";
+			filewriter<<"File: "<<name<<" Frame No:"<<animationcount<<" Particle Tracking\n";
+			filewriter<<"ASCII\n";
+			if(tracks[i]->getNumElements())
+			{
+				for(unsigned int j=0;j<tracks[i]->getNumElements();j++)
+				{
+					if(!visible[i][j])
+						continue;
+					(*vertices)[count]=(*tracks[i])[j];
+					(*vertices)[count].set(-(*vertices)[count].x()*SCALE+xtrans_particle,
+						(*vertices)[count].y()*SCALE+ytrans_particle,
+						(*vertices)[count].z()*SCALE*zscale+ztranslate+ztrans_particle);
+					(*colors)[count]=(*colorlist)[j];
+					count++;
+					if(i == animationcount - 1)
+					{	
+						osg::ref_ptr<osg::Sphere> cogs = new osg::Sphere((*vertices)[count-1],5.0*SCALE);
+						osg::ref_ptr<osg::ShapeDrawable> cogDrawable = new osg::ShapeDrawable(cogs);
+						osg::ref_ptr<osg::Geode> cogGeode = new osg::Geode();
+						cogGeode->addDrawable(cogDrawable);
+						transform->addChild(cogGeode);
+						osg::ref_ptr<osg::Geode> cont_flow=new osg::Geode;
+						osg::ref_ptr<osg::Geometry> contgeom = new osg::Geometry;
+						osg::ref_ptr<osg::Vec3Array> contvertices = new osg::Vec3Array(contourlist[i][j].size());
+						osg::ref_ptr<osg::Vec4Array> contcolor= new osg::Vec4Array;
+						contcolor->push_back((*colorlist)[j]);
+						for(unsigned int k=0;k<contourlist[i][j].size();k++)
+						{
+							(*contvertices)[k]=contourlist[i][j][k];
+							(*contvertices)[k].set(-(*contvertices)[k].x()*SCALE+xtrans_particle,
+								(*contvertices)[k].y()*SCALE+ytrans_particle,
+								(*contvertices)[k].z()*SCALE*zscale+ztranslate+ztrans_particle);
+						}
+						osg::ref_ptr<osg::DrawArrays>contindices =new osg::DrawArrays(osg::PrimitiveSet::POLYGON,0,contourlist[i][j].size());
+						contgeom->setVertexArray( contvertices.get() );
+						contgeom->setColorArray(contcolor);
+						contgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+						contgeom->addPrimitiveSet(contindices.get());
+						
+						//stateset->setAttribute(new osg::point( 3.0f ),osg::StateAttribute::ON);
+						contgeom->setStateSet(stateset);
+						cont_flow->addDrawable(contgeom);
+						transform->addChild(cont_flow);
+					}
+				}
+
+			}
+		}
+	}
+}*/

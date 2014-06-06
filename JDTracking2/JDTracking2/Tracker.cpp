@@ -52,6 +52,7 @@ void Tracker::load_images(string pname,bool show)
 		list_images_org.push_back(list_images[i]);
 		if(i==0)
 			ref=list_images[i].clone();
+		//ref=cv::Mat::zeros(list_images[0].size(),list_images[0].type());
 		if(show)
 		{
 			cv::imshow("showme",list_images[i]);
@@ -72,6 +73,7 @@ void Tracker::load_images_video(string p, bool show)
 		if(firstframe==1)
 		{
 			ref=frame.clone();
+			//ref=cv::Mat::zeros(list_images[0].size(),list_images[0].type());
 		}
 		firstframe++;
 		cv::Mat temp=frame.clone();
@@ -107,6 +109,7 @@ void Tracker::clean_image(bool show)
 		{
 			cv::imshow("showme",erode2);
 			cv::waitKey(50);
+			//cv::imwrite("CleanImage.png",erode2);
 		}
 	}
 }
@@ -147,12 +150,13 @@ void Tracker::track_particles(bool show)
 			cv::drawContours(list_images[i],contour,-1,CV_RGB(255,0,0),1);
 			cv::imshow("showme",list_images[i]);
 			cv::waitKey(200);
+			//cv::imwrite("ContoursImage.png",list_images[i]);
 			record<<list_images[i];
 			record<<list_images[i];
 			record<<list_images[i];
 		}	
 	}
-	make_tracks(false,200);
+	make_tracks(true,50);
 }
 
 void Tracker::optical_flow(bool show)
@@ -198,6 +202,7 @@ void Tracker::make_tracks(bool show,int wait)
 		cv::Mat showimage=tt.update(contours[i],list_images_org[i]);
 		tracks.push_back(tt.centre_return());
 		//all_contours.push_back(contours);
+		cv::drawContours(showimage,contours[i],-1,CV_RGB(255,0,0),1);
 		record<<showimage;
 		record<<showimage;
 		record<<showimage;
@@ -205,6 +210,7 @@ void Tracker::make_tracks(bool show,int wait)
 		{
 			cv::imshow("showme",showimage);
 			cv::waitKey(wait);
+			//cv::imwrite("ShowImage.png",showimage);
 		}
 		
 	}

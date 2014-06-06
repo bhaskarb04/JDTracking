@@ -16,19 +16,18 @@
 #include <osgGA/TrackballManipulator>
 #include <osgGA/CameraManipulator>
 #include <osgUtil/SmoothingVisitor>
+#include <osgUtil\DelaunayTriangulator>
 #include <osgViewer/Viewer>
-
-
 
 #include "Tracker.h"
 
 #define TIMER_ 0.100
 #define WINDOW_WIDTH 1000
 #define WINDOW_HEIGHT 600
-#define LOOP false
-#define FILE_PATH "C:\\Users\\Bhaskar\\Documents\\Fall\ 2012\\Research\\JDTracking\\Data\\"
+#define LOOP true
+#define FILE_PATH "../../Data/"
 #define SCALE 26
-#define WITH_MODEL true
+#define WITH_MODEL false
 #define WITH_MODEL_PLATE true
 #define BG_ERROR 0
 #define ZSCALE 1
@@ -56,7 +55,8 @@ class osgView : public osg::Referenced
 	osg::ref_ptr<osg::Image> image;
 	vector<vector<vector<osg::Vec3d> > >contourlist;
 	bool pause_flag;
-	
+	vector<cv::Mat> depthmaps;
+	vector<vector<osg::Geometry*> > listofgeoms;
 	//osg::ref_ptr<osg::ref_ptr<osg::Vec3Array> >tracks;
 
 	osg::ref_ptr<osg::Geode> drawAxes();
@@ -73,12 +73,14 @@ public:
 	~osgView();
 	void setmax(int,int,int,double);
 	void set_tracks(vector<vector<showcircle> > t);
+	void set_depthmap(string filename, int start, int end);
 	//void set_contours(vector<vector<float
 	void update(float time);
 	void update2(float time);
 	void draw();
 	void drawAnimation();
 	void drawAnimation2();
+	//void convert2vtk(string);
 
 	vector<cv::Mat> osgVideo;
 	friend class myKeyboardEventHandler;

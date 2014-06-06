@@ -1,8 +1,8 @@
 #ifndef TRACKER_CPP
 #define TRACKER_CPP
 
-#include <cv.h>
-#include <highgui.h>
+#include <opencv\cv.h>
+#include <opencv\highgui.h>
 #include <iostream>
 #include <string>
 #include <string.h>

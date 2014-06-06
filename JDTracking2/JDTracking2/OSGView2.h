@@ -25,7 +25,7 @@
 #define TIMER_ 0.100
 #define WINDOW_WIDTH 1000
 #define WINDOW_HEIGHT 600
-#define LOOP false
+#define LOOP true
 #define FILE_PATH "C:\\Users\\Bhaskar\\Documents\\Fall\ 2012\\Research\\JDTracking\\Data\\"
 #define SCALE 26
 #define WITH_MODEL true
@@ -34,7 +34,7 @@
 #define ZSCALE 1
 #define ZTRANSLATE 0
 #define WITH_HEAD true
-#define NO_LOOPS 1
+#define NO_LOOPS 2
 #define TRANS_STEP 500
 
 
@@ -57,6 +57,7 @@ class osgView : public osg::Referenced
 	osg::ref_ptr<osg::Image> image;
 	vector<vector<vector<osg::Vec3d> > >contourlist;
 	bool pause_flag;
+	osg::ref_ptr<osg::Group> main_node;
 	
 	//osg::ref_ptr<osg::ref_ptr<osg::Vec3Array> >tracks;
 
@@ -77,6 +78,7 @@ public:
 	//void set_contours(vector<vector<float
 	void update(float time);
 	void update2(float time);
+	void update3();
 	void draw();
 	void drawAnimation();
 	void drawAnimation2();
@@ -97,30 +99,39 @@ public:
 
 class ParticleCallback : public osg::NodeCallback 
 {
+	int num;
 public:
-   virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
-   {
-      osg::ref_ptr<osgView> ParticleData = 
-         dynamic_cast<osgView*> (node->getUserData() );
-      if(ParticleData)
-      {
-         ParticleData->update(TIMER_);
-      }
-      traverse(node, nv); 
-   }
+	ParticleCallback(){num=0;}
+	virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+	{
+	  osg::ref_ptr<osg::Group> ParticleData = dynamic_cast<osg::Group*> (node);
+	  if(ParticleData)
+	  {
+		 ParticleData->getChild(5)->asGroup()->getChild(num)->asSwitch()->setAllChildrenOn();
+		 if(num!=0)
+			ParticleData->getChild(5)->asGroup()->getChild(num-1)->asSwitch()->setAllChildrenOff();
+		 else
+			ParticleData->getChild(5)->asGroup()->getChild(ParticleData->getChild(5)->asGroup()->getNumChildren()-1)->asSwitch()->setAllChildrenOff();
+
+		 num++;
+		 num=num%ParticleData->getChild(5)->asGroup()->getNumChildren();
+	  }
+	  traverse(node, nv); 
+	}
 };
 
 class OSGViewer
 {
-	osgView *osgview;
+	osgView *osgv;
 	osg::Image *image;
+	//ParticleCallback *pcb;
 public:
-	OSGViewer(){osgview=new osgView;}
-	~OSGViewer(){delete osgview;}
-	void setmax(int a,int b,int c,double d){osgview->_setmax(a,b,c,d);}
-	void settracks(vector<vector<showcircle> > t){osgview->_settracks(t);}
+	OSGViewer(){osgv=new osgView;}
+	~OSGViewer(){delete osgv;}
+	void setmax(int a,int b,int c,double d){osgv->_setmax(a,b,c,d);}
+	void settracks(vector<vector<showcircle> > t){osgv->_settracks(t);}
 	void run();
-	vector<cv::Mat> getVideoVector(){return osgview->osgVideo;}
+	vector<cv::Mat> getVideoVector(){return osgv->osgVideo;}
 };
 
 #endif
